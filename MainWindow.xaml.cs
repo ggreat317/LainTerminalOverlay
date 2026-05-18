@@ -19,6 +19,9 @@ namespace TerminalOverlay
         private const int WS_EX_TRANSPARENT = 0x00000020;
         private const int WS_EX_LAYERED = 0x00080000;
         private const int GWL_EXSTYLE = -20;
+        private double originalHeight;
+        private double originalWidth;
+
         public MainWindow()
         {
             SetCurrentProcessExplicitAppUserModelID("TerminalOverlay.HUD.App");
@@ -30,6 +33,8 @@ namespace TerminalOverlay
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             LoadGif();
+            originalHeight = Height;
+            originalWidth = Width;
         }
 
         private void MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
@@ -110,8 +115,15 @@ namespace TerminalOverlay
 
             double scale = GetScale(terminalHandle);
 
-            Left = rect.Right - (this.Width * scale);
-            Top = rect.Bottom - (this.Height * scale);
+            //System.Diagnostics.Debug.WriteLine(
+            //    $"Scale: {scale}"
+            //);
+
+            Height = originalHeight / scale;
+            Width = originalWidth / scale;
+
+            Left = ( rect.Right / scale ) - this.Width;
+            Top = ( rect.Bottom / scale ) - this.Height;
 
         }
 
