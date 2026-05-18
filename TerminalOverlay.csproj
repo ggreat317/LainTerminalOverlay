@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<UseWPF>true</UseWPF>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<ApplicationIcon>Assets\lain.ico</ApplicationIcon>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <Compile Remove="bin\**" />
+	  <Compile Remove="obj\**" />
+	  <EmbeddedResource Remove="bin\**" />
+	  <EmbeddedResource Remove="obj\**" />
+	  <None Remove="bin\**" />
+	  <None Remove="obj\**" />
+	  <Page Remove="bin\**" />
+	  <Page Remove="obj\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="Assets\lain.ico" >
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="Assets\lain.gif">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+	<ItemGroup>
+	  <None Include="TerminalOverlay.slnx" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="WpfAnimatedGif" Version="2.0.2" />
+	</ItemGroup>
+
+</Project>
