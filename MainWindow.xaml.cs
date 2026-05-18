@@ -5,6 +5,7 @@ using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 using System.Timers;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -16,9 +17,16 @@ namespace TerminalOverlay
     public partial class MainWindow : Window
     {
         private DispatcherTimer _timer;
+
+        const uint GW_HWNDPREV = 3;
+        const uint SWP_NOMOVE = 0x0002;
+        const uint SWP_NOSIZE = 0x0001;
+        const uint SWP_NOACTIVATE = 0x0010;
         private const int WS_EX_TRANSPARENT = 0x00000020;
         private const int WS_EX_LAYERED = 0x00080000;
         private const int GWL_EXSTYLE = -20;
+
+        private nint handle;
         private double originalHeight;
         private double originalWidth;
 
@@ -34,6 +42,8 @@ namespace TerminalOverlay
         {
             this.Hide();
             LoadGif();
+
+            handle = new WindowInteropHelper(this).Handle;
 
             originalHeight = Height;
             originalWidth = Width;
@@ -57,11 +67,9 @@ namespace TerminalOverlay
 
         private void cantClickMe()
         {
-            var hwnd = new WindowInteropHelper(this).Handle;
-
-            int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+            int exStyle = GetWindowLong(handle, GWL_EXSTYLE);
             SetWindowLong(
-                hwnd,
+                handle,
                 GWL_EXSTYLE, 
                 exStyle | WS_EX_TRANSPARENT | WS_EX_LAYERED
             );
@@ -69,11 +77,9 @@ namespace TerminalOverlay
 
         private void canClickMe()
         {
-            var hwnd = new WindowInteropHelper(this).Handle;
-
-            int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+            int exStyle = GetWindowLong(handle, GWL_EXSTYLE);
             SetWindowLong(
-                hwnd,
+                handle,
                 GWL_EXSTYLE,
                 exStyle | WS_EX_LAYERED
             );
@@ -125,6 +131,15 @@ namespace TerminalOverlay
                 this.Show();
             }
 
+            IntPtr above = GetWindow(terminalHandle, GW_HWNDPREV);
+
+            SetWindowPos(
+                handle,
+                above,
+                0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
+            );
+
             RECT rect;
             DwmGetWindowAttribute(terminalHandle, DWMWA_EXTENDED_FRAME_BOUNDS, out rect, Marshal.SizeOf<RECT>());
 
@@ -170,6 +185,19 @@ namespace TerminalOverlay
             int dpi = GetDpiForWindow(hwnd);
             return dpi / 96.0; // 96 = 100% scaling baseline
         }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
+
+        [DllImport("user32.dll")]
+        static extern bool SetWindowPos(
+            IntPtr hWnd,
+            IntPtr hWndInsertAfter,
+            int X,
+            int Y,
+            int cx,
+            int cy,
+            uint uFlags);
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
