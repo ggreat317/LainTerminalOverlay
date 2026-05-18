@@ -15,8 +15,9 @@
         Loaded="Window_Loaded"
         >
 
-    <Grid>
-        <Image x:Name="OverlayImage"
-/>
+    <Grid MouseEnter="MouseEnter"
+          MouseLeave="MouseLeave">
+        <Image x:Name="OverlayImage"/>
+        
     </Grid>
 </Window>

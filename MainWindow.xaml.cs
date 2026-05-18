@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
+using System.Windows.Interop;
 using System.Timers;
 using System.Windows;
 using System.Windows.Media.Imaging;
@@ -15,6 +16,9 @@ namespace TerminalOverlay
     public partial class MainWindow : Window
     {
         private DispatcherTimer _timer;
+        private const int WS_EX_TRANSPARENT = 0x00000020;
+        private const int WS_EX_LAYERED = 0x00080000;
+        private const int GWL_EXSTYLE = -20;
         public MainWindow()
         {
             SetCurrentProcessExplicitAppUserModelID("TerminalOverlay.HUD.App");
@@ -26,6 +30,39 @@ namespace TerminalOverlay
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             LoadGif();
+        }
+
+        private void MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            this.Opacity = 0.3;
+        }
+        private void MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            this.Opacity = 0.9;
+        }
+
+        private void cantClickMe()
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+
+            int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+            SetWindowLong(
+                hwnd,
+                GWL_EXSTYLE, 
+                exStyle | WS_EX_TRANSPARENT | WS_EX_LAYERED
+            );
+        }
+
+        private void canClickMe()
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+
+            int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+            SetWindowLong(
+                hwnd,
+                GWL_EXSTYLE,
+                exStyle | WS_EX_LAYERED
+            );
         }
 
         private void StartClock()
@@ -109,12 +146,18 @@ namespace TerminalOverlay
 
         [DllImport("dwmapi.dll")]
         static extern int DwmGetWindowAttribute(
-    IntPtr hwnd,
-    int dwAttribute,
-    out RECT pvAttribute,
-    int cbAttribute);
+            IntPtr hwnd,
+            int dwAttribute,
+            out RECT pvAttribute,
+            int cbAttribute);
 
         const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
+
+        [DllImport("user32.dll")]
+        static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [DllImport("user32.dll")]
+        static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
         [DllImport("user32.dll")]
         static extern int GetDpiForWindow(IntPtr hWnd);
