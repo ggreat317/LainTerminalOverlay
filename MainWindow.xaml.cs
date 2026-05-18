@@ -32,6 +32,7 @@ namespace TerminalOverlay
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            this.Hide();
             LoadGif();
             originalHeight = Height;
             originalWidth = Width;
@@ -99,7 +100,13 @@ namespace TerminalOverlay
             }
 
             
-            if(!GetWindowRect(terminalHandle, out RECT tmp))
+            if (!GetWindowRect(terminalHandle, out RECT tmp))
+            {
+                this.Hide();
+                return;
+            }
+
+            if (IsIconic(terminalHandle))
             {
                 this.Hide();
                 return;
@@ -155,6 +162,10 @@ namespace TerminalOverlay
             int dpi = GetDpiForWindow(hwnd);
             return dpi / 96.0; // 96 = 100% scaling baseline
         }
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool IsIconic(IntPtr hWnd);
 
         [DllImport("dwmapi.dll")]
         static extern int DwmGetWindowAttribute(
