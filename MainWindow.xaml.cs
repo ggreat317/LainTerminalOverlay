@@ -3,12 +3,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
-using System.Windows.Interop;
 using System.Timers;
 using System.Windows;
+using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-
 using WpfAnimatedGif;
 
 namespace TerminalOverlay
@@ -34,8 +34,16 @@ namespace TerminalOverlay
         {
             this.Hide();
             LoadGif();
+
             originalHeight = Height;
             originalWidth = Width;
+
+
+            MediaPlayer player = new MediaPlayer();
+
+            player.Open(new Uri("assets/lain.mp3", UriKind.Relative));
+            player.Play();
+
         }
 
         private void MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
