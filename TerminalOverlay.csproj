@@ -21,7 +21,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Content Include="Assets\lain.ico" >
+	  <None Remove="TerminalOverlay.zip" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="Assets\lain.ico">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="Assets\lain.gif">
