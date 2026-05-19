@@ -18,6 +18,9 @@ namespace TerminalOverlay
     {
         private DispatcherTimer _timer;
 
+        public const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
+        public const uint WINEVENT_OUTOFCONTEXT = 0;
+        public const int OBJID_WINDOW = 0;
         const uint GW_HWNDPREV = 3;
         const uint SWP_NOMOVE = 0x0002;
         const uint SWP_NOSIZE = 0x0001;
@@ -29,6 +32,11 @@ namespace TerminalOverlay
         private nint handle;
         private double originalHeight;
         private double originalWidth;
+
+        private WinEventDelegate _proc;
+        private IntPtr _hook;
+
+        private IntPtr terminalHandle = IntPtr.Zero;
 
         public MainWindow()
         {
@@ -54,6 +62,49 @@ namespace TerminalOverlay
             player.Open(new Uri("assets/lain.mp3", UriKind.Relative));
             player.Play();
 
+            _proc = WinEventProc;
+
+            // calls winEventProc on any window moving
+            _hook = SetWinEventHook(
+                EVENT_OBJECT_LOCATIONCHANGE,
+                EVENT_OBJECT_LOCATIONCHANGE,
+                IntPtr.Zero,
+                _proc,
+                0,
+                0,
+                WINEVENT_OUTOFCONTEXT);
+
+        }
+
+        // checks if window moving is terminal recorded and moves overlay if so
+        private void WinEventProc(
+            IntPtr hWinEventHook,
+            uint eventType,
+            IntPtr hwnd,
+            int idObject,
+            int idChild,
+            uint dwEventThread,
+            uint dwmsEventTime
+            )
+        {
+
+            if (hwnd != terminalHandle)
+            {
+                return;
+            }
+
+            moveWindow();
+        }
+
+        // to cut off the listener
+        protected override void OnClosed(EventArgs e)
+        {
+            if (_hook != IntPtr.Zero)
+            {
+                UnhookWinEvent(_hook);
+            }
+
+            base.OnClosed(e);
         }
 
         private void MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
@@ -89,11 +140,16 @@ namespace TerminalOverlay
         {
             _timer = new DispatcherTimer();
             _timer.Interval = TimeSpan.FromMilliseconds(200);
-            _timer.Tick += Timer_Tick;
+            _timer.Tick += mwAdapter;
             _timer.Start();
         }
 
-        private void Timer_Tick(object sender, EventArgs e)
+        private void mwAdapter(object sender, EventArgs e)
+        {
+            moveWindow();
+        }
+
+        private void moveWindow()
         {
 
             var proc = Process.GetProcessesByName("WindowsTerminal").FirstOrDefault();
@@ -185,6 +241,31 @@ namespace TerminalOverlay
             int dpi = GetDpiForWindow(hwnd);
             return dpi / 96.0; // 96 = 100% scaling baseline
         }
+
+        public delegate void WinEventDelegate(
+             IntPtr hWinEventHook,
+             uint eventType,
+             IntPtr hwnd,
+             int idObject,
+             int idChild,
+             uint dwEventThread,
+             uint dwmsEventTime
+        );
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool UnhookWinEvent(IntPtr hWinEventHook);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetWinEventHook(
+        uint eventMin,
+        uint eventMax,
+        IntPtr hmodWinEventProc,
+        WinEventDelegate lpfnWinEventProc,
+        uint idProcess,
+        uint idThread,
+        uint dwFlags
+        );
 
         [DllImport("user32.dll", SetLastError = true)]
         static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
