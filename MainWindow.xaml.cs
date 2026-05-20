@@ -24,13 +24,17 @@ namespace TerminalOverlay
         public const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
         public const uint WINEVENT_OUTOFCONTEXT = 0;
         public const int OBJID_WINDOW = 0;
-        const uint GW_HWNDPREV = 3;
-        const uint SWP_NOMOVE = 0x0002;
-        const uint SWP_NOSIZE = 0x0001;
-        const uint SWP_NOACTIVATE = 0x0010;
+        private const uint GA_ROOTOWNER = 3;
+        private const uint GW_HWNDNEXT = 2;
+        private const uint GW_HWNDPREV = 3;
+        private const uint SWP_NOMOVE = 0x0002;
+        private const uint SWP_NOSIZE = 0x0001;
+        private const uint SWP_NOACTIVATE = 0x0010;
         private const int WS_EX_TRANSPARENT = 0x00000020;
         private const int WS_EX_LAYERED = 0x00080000;
         private const int GWL_EXSTYLE = -20;
+        private IntPtr shell = GetShellWindow();
+        private IntPtr desktop = GetDesktopWindow();
 
         private nint myHandle;
 
@@ -38,6 +42,7 @@ namespace TerminalOverlay
         private double originalWidth;
 
         private nint parentHandle = IntPtr.Zero;
+        private bool changedParent = false;
         private bool dragging = false;
         private double myDragStartTop = 0;
         private double myDragStartLeft = 0;
@@ -124,15 +129,47 @@ namespace TerminalOverlay
             //);
             dragging = true;
             Cursor = grabbing;
-            initDrag = true;
+            initDrag = true;    
+            SetWindowPos(
+                myHandle,
+                IntPtr.Zero,
+                0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
+            );
             Mouse.Capture((IInputElement)sender);
         }
 
         private void muPrevAdapter(object sender, MouseButtonEventArgs e)
         {
-//            System.Diagnostics.Debug.WriteLine(
-//$"Mouse Up, Dragging: {dragging}"
-//);
+            //System.Diagnostics.Debug.WriteLine(
+            //$"Mouse Up, Dragging: {dragging}"
+            //);
+            cantClickMe();
+            GetCursorPos(out POINT mousePoint);
+            IntPtr belowRaw = WindowFromPoint(mousePoint);
+            IntPtr belowRoot = GetAncestor(belowRaw, GA_ROOTOWNER);
+            windowNameFromHandleDebug(belowRoot, out string s);
+
+            bool isDesktop =
+                belowRaw == shell ||
+                belowRoot == shell ||
+                belowRaw == desktop ||
+                belowRoot == desktop;
+            if (isDesktop)
+            {
+                System.Diagnostics.Debug.WriteLine("Window is Desktop!");
+
+            }
+            else if (belowRoot != IntPtr.Zero)
+            {
+                changedParent = true;
+                parentHandle = belowRoot;
+            } else
+            {
+                System.Diagnostics.Debug.WriteLine("Window is Zeroptr!");
+            }
+
+            canClickMe();
             MouseUp();
         }
 
@@ -201,6 +238,24 @@ namespace TerminalOverlay
             Top = myDragStartTop + ( mousePoint.Y - mouseStartTop ) / scale;
             Left = myDragStartLeft + ( mousePoint.X - mouseStartLeft ) / scale;
 
+            //IntPtr below = GetWindow(myHandle, GW_HWNDNEXT);
+            //if (below == tmp)
+            //{
+            //    return;
+            //}
+            //tmp = below;
+
+            //uint pid;
+            //GetWindowThreadProcessId(below, out pid);
+
+            //Process proc = Process.GetProcessById((int)pid);
+
+            //string name = proc.ProcessName;
+
+            //System.Diagnostics.Debug.WriteLine(
+            //    $"below: {name}"
+            //);
+
             //System.Diagnostics.Debug.WriteLine(
             //    $"Mouse Move, Top: {Top}, Left: {Left}, mydst: {myDragStartTop}," +
             //    $"mydsl: {myDragStartLeft}, modst: {mouseStartTop}," +
@@ -224,7 +279,7 @@ namespace TerminalOverlay
             SetWindowLong(
                 myHandle,
                 GWL_EXSTYLE,
-                exStyle | WS_EX_LAYERED
+                exStyle & ~WS_EX_TRANSPARENT
             );
         }
 
@@ -248,32 +303,41 @@ namespace TerminalOverlay
                 return;
             }
 
-            var proc = Process.GetProcessesByName("WindowsTerminal").FirstOrDefault();
-            
-            if (proc == null) {
-                this.Hide();
-                return;
+            // default setting for putting on last active terminal window
+            if (!changedParent) {
+                var proc = Process.GetProcessesByName("WindowsTerminal").FirstOrDefault();
+
+                if (proc == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("Default Proc is missing");
+                    this.Hide();
+                    return;
+                }
+
+                proc.Refresh();
+
+                // IntPtr terminalHandle = FindWindow(null, "Windows Terminal");
+
+                parentHandle = proc.MainWindowHandle;
+
             }
-
-            proc.Refresh();
-
-            // IntPtr terminalHandle = FindWindow(null, "Windows Terminal");
-            parentHandle = proc.MainWindowHandle;
 
             if (parentHandle == IntPtr.Zero)
             {
+                System.Diagnostics.Debug.WriteLine("No Parent Handle Found");
                 this.Hide();
                 return;
             }
             
-            if (!GetWindowRect(parentHandle, out RECT tmp))
-            {
+            if (!GetWindowRect(parentHandle, out RECT tmp)) {
+                System.Diagnostics.Debug.WriteLine("Parent is not Rect!");
                 this.Hide();
                 return;
             }
 
             if (IsIconic(parentHandle))
             {
+                System.Diagnostics.Debug.WriteLine("Parent is not Iconic!");
                 this.Hide();
                 return;
             }
@@ -338,6 +402,27 @@ namespace TerminalOverlay
             return dpi / 96.0; // 96 = 100% scaling baseline
         }
 
+        private void windowNameFromHandleDebug(IntPtr handle, out String s)
+        {
+            if (handle == IntPtr.Zero)
+            {
+                System.Diagnostics.Debug.WriteLine("Window is Zeroptr");
+                s = "Empty";
+                return;
+            }
+
+            uint pid;
+            GetWindowThreadProcessId(handle, out pid);
+
+            Process proc = Process.GetProcessById((int)pid);
+
+            s = proc.ProcessName;
+
+            System.Diagnostics.Debug.WriteLine(
+                $"handleName: {s}"
+            );
+        }
+
         public delegate void WinEventDelegate(
              IntPtr hWinEventHook,
              uint eventType,
@@ -347,6 +432,21 @@ namespace TerminalOverlay
              uint dwEventThread,
              uint dwmsEventTime
         );
+
+        [DllImport("user32.dll")]
+        static extern IntPtr GetShellWindow();
+
+        [DllImport("user32.dll")]
+        static extern IntPtr GetDesktopWindow();
+
+        [DllImport("user32.dll")]
+        static extern IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
+
+        [DllImport("user32.dll")]
+        static extern IntPtr WindowFromPoint(POINT Point);
+
+        [DllImport("user32.dll")]
+        static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
         [DllImport("user32.dll")]
         static extern bool GetCursorPos(out POINT lpPoint);
