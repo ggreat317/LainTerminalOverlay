@@ -53,10 +53,12 @@ namespace TerminalOverlay
             SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
             InitializeComponent();
             StartClock();
+            this.Hide();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            this.Hide();
             LoadGif();
 
             myHandle = new WindowInteropHelper(this).Handle;
@@ -81,8 +83,6 @@ namespace TerminalOverlay
                 0,
                 0,
                 WINEVENT_OUTOFCONTEXT);
-
-            this.Hide();
         }
 
 
@@ -286,7 +286,7 @@ namespace TerminalOverlay
             IntPtr above = GetWindow(parentHandle, GW_HWNDPREV);
 
             SetWindowPos(
-                parentHandle,
+                myHandle,
                 above,
                 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
