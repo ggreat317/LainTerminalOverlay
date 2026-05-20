@@ -57,7 +57,6 @@ namespace TerminalOverlay
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            this.Hide();
             LoadGif();
 
             myHandle = new WindowInteropHelper(this).Handle;
@@ -82,12 +81,10 @@ namespace TerminalOverlay
                 0,
                 0,
                 WINEVENT_OUTOFCONTEXT);
+
+            this.Hide();
         }
 
-        //private bool _dragging;
-        //private Point _startMouse;
-        //private double _startLeft, _startTop;
-        //private IntPtr _myHwnd;
 
         // checks if window moving is terminal recorded and moves overlay if so
         private void WinEventProc(
@@ -133,17 +130,17 @@ namespace TerminalOverlay
 
         private void muPrevAdapter(object sender, MouseButtonEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine(
-$"Mouse Up, Dragging: {dragging}"
-);
+//            System.Diagnostics.Debug.WriteLine(
+//$"Mouse Up, Dragging: {dragging}"
+//);
             MouseUp();
         }
 
         private void muLostAdapter(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine(
-    $"Lost Mouse, Dragging: {dragging}"
-);
+//            System.Diagnostics.Debug.WriteLine(
+//    $"Lost Mouse, Dragging: {dragging}"
+//);
             MouseUp();
         }
 
@@ -164,27 +161,27 @@ $"Mouse Up, Dragging: {dragging}"
 
         private void MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine(
-                $"Mouse Enter, Dragging: ${dragging}"
-            );
+            //System.Diagnostics.Debug.WriteLine(
+            //    $"Mouse Enter, Dragging: ${dragging}"
+            //);
             Cursor = grab;
             this.Opacity = 0.3;
         }
 
         private void MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine(
-                $"Mouse Leave, Dragging: ${dragging}"
-            );
+            //System.Diagnostics.Debug.WriteLine(
+            //    $"Mouse Leave, Dragging: ${dragging}"
+            //);
             Cursor = Cursors.Arrow;
             this.Opacity = 0.9;
         }
 
         private void MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine(
-                $"Mouse Move, Dragging: {dragging}"
-            );
+            //System.Diagnostics.Debug.WriteLine(
+            //    $"Mouse Move, Dragging: {dragging}"
+            //);
             if (!dragging)
             {
                 return;
@@ -201,17 +198,14 @@ $"Mouse Up, Dragging: {dragging}"
             }
 
             double scale = GetScale(myHandle);
-            var t = myDragStartTop + ( mousePoint.Y - mouseStartTop ) / scale;
-            var l = myDragStartLeft + ( mousePoint.X - mouseStartLeft ) / scale;
+            Top = myDragStartTop + ( mousePoint.Y - mouseStartTop ) / scale;
+            Left = myDragStartLeft + ( mousePoint.X - mouseStartLeft ) / scale;
 
-            Top = t;
-            Left = l;
-
-            System.Diagnostics.Debug.WriteLine(
-                $"Mouse Move, Top: {t}, Left: {l}, mydst: {myDragStartTop}," +
-                $"mydsl: {myDragStartLeft}, modst: {mouseStartTop}," +
-                $"modsl: {mouseStartLeft} "
-            );
+            //System.Diagnostics.Debug.WriteLine(
+            //    $"Mouse Move, Top: {Top}, Left: {Left}, mydst: {myDragStartTop}," +
+            //    $"mydsl: {myDragStartLeft}, modst: {mouseStartTop}," +
+            //    $"modsl: {mouseStartLeft} "
+            //);
         }
 
         private void cantClickMe()
@@ -257,6 +251,7 @@ $"Mouse Up, Dragging: {dragging}"
             var proc = Process.GetProcessesByName("WindowsTerminal").FirstOrDefault();
             
             if (proc == null) {
+                this.Hide();
                 return;
             }
 
@@ -270,7 +265,6 @@ $"Mouse Up, Dragging: {dragging}"
                 this.Hide();
                 return;
             }
-
             
             if (!GetWindowRect(parentHandle, out RECT tmp))
             {
