@@ -128,16 +128,22 @@ namespace TerminalOverlay
             dragging = true;
             Cursor = grabbing;
             initDrag = true;
-            // Mouse.Capture(this);
+            Mouse.Capture((IInputElement)sender);
         }
 
         private void muPrevAdapter(object sender, MouseButtonEventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine(
+$"Mouse Up, Dragging: {dragging}"
+);
             MouseUp();
         }
 
         private void muLostAdapter(object sender, System.Windows.Input.MouseEventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine(
+    $"Lost Mouse, Dragging: {dragging}"
+);
             MouseUp();
         }
 

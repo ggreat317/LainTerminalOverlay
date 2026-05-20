@@ -15,7 +15,8 @@
         Loaded="Window_Loaded"
         >
 
-    <Grid Background="Red"
+    <Grid x:Name="OverlayGrid"
+          Background="Transparent"
           MouseEnter="MouseEnter"
           PreviewMouseLeftButtonUp="muPrevAdapter"
           PreviewMouseLeftButtonDown="MouseDown"
