@@ -12,3 +12,12 @@ FOR EDITING
 2. run 'dotnet publish -c Release -r win-x64 --self-contained true'
 3. run 'Compress-Archive -Path .\bin\Release\net10.0-windows\win-x64\publish\* -DestinationPath TerminalOverlay.zip'
 4. publish on gh
+
+
+
+## Third-Party Assets
+
+grab.cur / grabbing.cur
+Licensed under CC BY 4.0
+https://www.rw-designer.com/cursor-detail/89572
+https://www.rw-designer.com/cursor-detail/89573

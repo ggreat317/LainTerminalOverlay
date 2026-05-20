@@ -15,8 +15,14 @@
         Loaded="Window_Loaded"
         >
 
-    <Grid MouseEnter="MouseEnter"
-          MouseLeave="MouseLeave">
+    <Grid Background="Red"
+          MouseEnter="MouseEnter"
+          PreviewMouseLeftButtonUp="muPrevAdapter"
+          PreviewMouseLeftButtonDown="MouseDown"
+          LostMouseCapture="muLostAdapter"
+          MouseLeave="MouseLeave"
+          PreviewMouseMove="MouseMove"
+          >
         <Image x:Name="OverlayImage"/>
         
     </Grid>

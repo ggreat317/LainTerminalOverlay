@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.DirectoryServices.ActiveDirectory;
 using System.IO;
 using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
@@ -17,6 +18,8 @@ namespace TerminalOverlay
     public partial class MainWindow : Window
     {
         private DispatcherTimer _timer;
+        private WinEventDelegate _proc;
+        private IntPtr _hook;
 
         public const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
         public const uint WINEVENT_OUTOFCONTEXT = 0;
@@ -29,14 +32,20 @@ namespace TerminalOverlay
         private const int WS_EX_LAYERED = 0x00080000;
         private const int GWL_EXSTYLE = -20;
 
-        private nint handle;
+        private nint myHandle;
+
         private double originalHeight;
         private double originalWidth;
 
-        private WinEventDelegate _proc;
-        private IntPtr _hook;
-
-        private IntPtr terminalHandle = IntPtr.Zero;
+        private nint parentHandle = IntPtr.Zero;
+        private bool dragging = false;
+        private double myDragStartTop = 0;
+        private double myDragStartLeft = 0;
+        private double mouseStartTop = 0;
+        private double mouseStartLeft = 0;
+        private bool initDrag = false;
+        private Cursor grab = new Cursor("Assets/grab.cur");
+        private Cursor grabbing = new Cursor("Assets/grabbing.cur");
 
         public MainWindow()
         {
@@ -51,7 +60,7 @@ namespace TerminalOverlay
             this.Hide();
             LoadGif();
 
-            handle = new WindowInteropHelper(this).Handle;
+            myHandle = new WindowInteropHelper(this).Handle;
 
             originalHeight = Height;
             originalWidth = Width;
@@ -73,8 +82,12 @@ namespace TerminalOverlay
                 0,
                 0,
                 WINEVENT_OUTOFCONTEXT);
-
         }
+
+        //private bool _dragging;
+        //private Point _startMouse;
+        //private double _startLeft, _startTop;
+        //private IntPtr _myHwnd;
 
         // checks if window moving is terminal recorded and moves overlay if so
         private void WinEventProc(
@@ -88,7 +101,7 @@ namespace TerminalOverlay
             )
         {
 
-            if (hwnd != terminalHandle)
+            if (hwnd != parentHandle)
             {
                 return;
             }
@@ -107,20 +120,99 @@ namespace TerminalOverlay
             base.OnClosed(e);
         }
 
+        private void MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            //System.Diagnostics.Debug.WriteLine(
+            //    $"Mouse Down ( Activation ), Dragging: {dragging}"
+            //);
+            dragging = true;
+            Cursor = grabbing;
+            initDrag = true;
+            // Mouse.Capture(this);
+        }
+
+        private void muPrevAdapter(object sender, MouseButtonEventArgs e)
+        {
+            MouseUp();
+        }
+
+        private void muLostAdapter(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            MouseUp();
+        }
+
+        private void MouseUp()
+        {
+            //System.Diagnostics.Debug.WriteLine(
+            //    $"Mouse Up, Dragging: {dragging}"
+            //);
+            if (dragging)
+            {
+                Cursor = grab;
+                dragging = false;
+                initDrag = false;
+            }
+            Mouse.Capture(null);
+            moveWindow();
+        }
+
         private void MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine(
+                $"Mouse Enter, Dragging: ${dragging}"
+            );
+            Cursor = grab;
             this.Opacity = 0.3;
         }
+
         private void MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine(
+                $"Mouse Leave, Dragging: ${dragging}"
+            );
+            Cursor = Cursors.Arrow;
             this.Opacity = 0.9;
+        }
+
+        private void MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"Mouse Move, Dragging: {dragging}"
+            );
+            if (!dragging)
+            {
+                return;
+            }
+
+            GetCursorPos(out POINT mousePoint);
+            if (initDrag)
+            {
+                mouseStartLeft = mousePoint.X;
+                mouseStartTop = mousePoint.Y;
+                myDragStartLeft = Left;
+                myDragStartTop = Top;
+                initDrag = false;
+            }
+
+            double scale = GetScale(myHandle);
+            var t = myDragStartTop + ( mousePoint.Y - mouseStartTop ) / scale;
+            var l = myDragStartLeft + ( mousePoint.X - mouseStartLeft ) / scale;
+
+            Top = t;
+            Left = l;
+
+            System.Diagnostics.Debug.WriteLine(
+                $"Mouse Move, Top: {t}, Left: {l}, mydst: {myDragStartTop}," +
+                $"mydsl: {myDragStartLeft}, modst: {mouseStartTop}," +
+                $"modsl: {mouseStartLeft} "
+            );
         }
 
         private void cantClickMe()
         {
-            int exStyle = GetWindowLong(handle, GWL_EXSTYLE);
+            int exStyle = GetWindowLong(myHandle, GWL_EXSTYLE);
             SetWindowLong(
-                handle,
+                myHandle,
                 GWL_EXSTYLE, 
                 exStyle | WS_EX_TRANSPARENT | WS_EX_LAYERED
             );
@@ -128,9 +220,9 @@ namespace TerminalOverlay
 
         private void canClickMe()
         {
-            int exStyle = GetWindowLong(handle, GWL_EXSTYLE);
+            int exStyle = GetWindowLong(myHandle, GWL_EXSTYLE);
             SetWindowLong(
-                handle,
+                myHandle,
                 GWL_EXSTYLE,
                 exStyle | WS_EX_LAYERED
             );
@@ -151,6 +243,10 @@ namespace TerminalOverlay
 
         private void moveWindow()
         {
+            if (dragging)
+            {
+                return;
+            }
 
             var proc = Process.GetProcessesByName("WindowsTerminal").FirstOrDefault();
             
@@ -161,22 +257,22 @@ namespace TerminalOverlay
             proc.Refresh();
 
             // IntPtr terminalHandle = FindWindow(null, "Windows Terminal");
-            IntPtr terminalHandle = proc.MainWindowHandle;
+            parentHandle = proc.MainWindowHandle;
 
-            if (terminalHandle == IntPtr.Zero)
+            if (parentHandle == IntPtr.Zero)
             {
                 this.Hide();
                 return;
             }
 
             
-            if (!GetWindowRect(terminalHandle, out RECT tmp))
+            if (!GetWindowRect(parentHandle, out RECT tmp))
             {
                 this.Hide();
                 return;
             }
 
-            if (IsIconic(terminalHandle))
+            if (IsIconic(parentHandle))
             {
                 this.Hide();
                 return;
@@ -187,19 +283,19 @@ namespace TerminalOverlay
                 this.Show();
             }
 
-            IntPtr above = GetWindow(terminalHandle, GW_HWNDPREV);
+            IntPtr above = GetWindow(parentHandle, GW_HWNDPREV);
 
             SetWindowPos(
-                handle,
+                parentHandle,
                 above,
                 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
             );
 
             RECT rect;
-            DwmGetWindowAttribute(terminalHandle, DWMWA_EXTENDED_FRAME_BOUNDS, out rect, Marshal.SizeOf<RECT>());
+            DwmGetWindowAttribute(parentHandle, DWMWA_EXTENDED_FRAME_BOUNDS, out rect, Marshal.SizeOf<RECT>());
 
-            double scale = GetScale(terminalHandle);
+            double scale = GetScale(parentHandle);
 
             //System.Diagnostics.Debug.WriteLine(
             //    $"Scale: {scale}"
@@ -251,6 +347,9 @@ namespace TerminalOverlay
              uint dwEventThread,
              uint dwmsEventTime
         );
+
+        [DllImport("user32.dll")]
+        static extern bool GetCursorPos(out POINT lpPoint);
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -318,13 +417,18 @@ namespace TerminalOverlay
         private static extern int SetCurrentProcessExplicitAppUserModelID(string AppID);
 
     public struct RECT
-        {
-            public int Left;
-            public int Top;
-            public int Right;
-            public int Bottom;
-        }
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
 
+    public struct POINT
+    {
+        public int X;
+        public int Y;
+    }
 
     }
 }
